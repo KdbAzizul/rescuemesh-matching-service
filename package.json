@@ -22,7 +22,8 @@
     "axios": "^1.6.2",
     "joi": "^17.11.0",
     "winston": "^3.11.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",

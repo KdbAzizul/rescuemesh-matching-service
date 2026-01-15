@@ -7,6 +7,8 @@ const { initializeMessageQueue, consumeFromQueue } = require('./config/messageQu
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const matchingService = require('./services/matchingService');
+const swaggerUi = require('swagger-ui-express');
+const swaggerDocument = require('./swagger.json');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -24,6 +26,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/health', require('./routes/health'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/api/matching', require('./routes/matching'));
 
 // Error handling

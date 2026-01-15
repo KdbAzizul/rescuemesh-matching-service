@@ -1,0 +1,596 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "RescueMesh Matching Service API",
+    "version": "1.0.0",
+    "description": "Intelligent Matching Service for matching volunteers and resources to emergency requests",
+    "contact": {
+      "name": "RescueMesh Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3005",
+      "description": "Local development server"
+    },
+    {
+      "url": "http://matching-service:3005",
+      "description": "Docker container"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Matching",
+      "description": "Matching operations"
+    },
+    {
+      "name": "Matches",
+      "description": "Match management"
+    },
+    {
+      "name": "Statistics",
+      "description": "Matching statistics"
+    },
+    {
+      "name": "Health",
+      "description": "Health check"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check",
+        "description": "Check the health status of the matching service",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service is unhealthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/matching/match": {
+      "post": {
+        "tags": ["Matching"],
+        "summary": "Match volunteers and resources to a request",
+        "description": "Manually trigger matching for an SOS request. Finds suitable volunteers and resources based on disaster type, required skills, location, and urgency.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchRequest"
+              },
+              "example": {
+                "requestId": "sos-123",
+                "disasterId": "disaster-123",
+                "disasterType": "flood",
+                "requiredSkills": ["boat_operator", "medic"],
+                "requiredResources": ["boat"],
+                "location": {
+                  "latitude": 28.6139,
+                  "longitude": 77.2090
+                },
+                "urgency": "critical",
+                "radius": 10
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Matching completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/matching/matches": {
+      "get": {
+        "tags": ["Matches"],
+        "summary": "Get matches for a request",
+        "description": "Retrieve all matches associated with a specific SOS request",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The SOS request ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matches retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matches": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Match"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing requestId parameter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/matching/matches/{matchId}/accept": {
+      "post": {
+        "tags": ["Matches"],
+        "summary": "Accept a match",
+        "description": "A volunteer accepts a match to an emergency request",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The match ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["volunteerId"],
+                "properties": {
+                  "volunteerId": {
+                    "type": "string",
+                    "description": "ID of the volunteer accepting the match"
+                  }
+                }
+              },
+              "example": {
+                "volunteerId": "user-789"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match accepted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matchId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["accepted"]
+                    },
+                    "acceptedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Match not found or unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/matching/matches/{matchId}/reject": {
+      "post": {
+        "tags": ["Matches"],
+        "summary": "Reject a match",
+        "description": "A volunteer rejects a match to an emergency request",
+        "parameters": [
+          {
+            "name": "matchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The match ID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["volunteerId"],
+                "properties": {
+                  "volunteerId": {
+                    "type": "string",
+                    "description": "ID of the volunteer rejecting the match"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Reason for rejection"
+                  }
+                }
+              },
+              "example": {
+                "volunteerId": "user-789",
+                "reason": "Already committed to another request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Match rejected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "matchId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["rejected"]
+                    },
+                    "rejectedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Match not found or unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/matching/stats": {
+      "get": {
+        "tags": ["Statistics"],
+        "summary": "Get matching statistics",
+        "description": "Retrieve statistics about matches including total, accepted, rejected, and pending matches",
+        "responses": {
+          "200": {
+            "description": "Statistics retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchingStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MatchRequest": {
+        "type": "object",
+        "required": ["requestId", "disasterId", "location", "urgency"],
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "description": "The SOS request ID"
+          },
+          "disasterId": {
+            "type": "string",
+            "description": "The disaster event ID"
+          },
+          "disasterType": {
+            "type": "string",
+            "enum": ["flood", "earthquake", "cyclone", "fire", "tsunami", "landslide"],
+            "description": "Type of disaster"
+          },
+          "requiredSkills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of required skills"
+          },
+          "requiredResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of required resources"
+          },
+          "location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "urgency": {
+            "type": "string",
+            "enum": ["critical", "high", "medium", "low"],
+            "description": "Urgency level of the request"
+          },
+          "radius": {
+            "type": "number",
+            "description": "Search radius in kilometers",
+            "default": 10
+          }
+        }
+      },
+      "MatchResponse": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string"
+          },
+          "matches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Match"
+            },
+            "description": "Skill matches"
+          },
+          "resourceMatches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceMatch"
+            },
+            "description": "Resource matches"
+          },
+          "matchedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Match": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "volunteerId": {
+            "type": "string"
+          },
+          "skillId": {
+            "type": "string"
+          },
+          "skillType": {
+            "type": "string"
+          },
+          "matchScore": {
+            "type": "number",
+            "format": "float",
+            "description": "Match score (0-10)"
+          },
+          "distance": {
+            "type": "number",
+            "format": "float",
+            "description": "Distance in kilometers"
+          },
+          "trustScore": {
+            "type": "number",
+            "format": "float",
+            "description": "Trust score (0-10)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "accepted", "rejected"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "rejectedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ResourceMatch": {
+        "type": "object",
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "distance": {
+            "type": "number",
+            "format": "float"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "accepted", "rejected"]
+          }
+        }
+      },
+      "MatchingStats": {
+        "type": "object",
+        "properties": {
+          "totalMatches": {
+            "type": "integer",
+            "description": "Total number of matches"
+          },
+          "acceptedMatches": {
+            "type": "integer",
+            "description": "Number of accepted matches"
+          },
+          "rejectedMatches": {
+            "type": "integer",
+            "description": "Number of rejected matches"
+          },
+          "pendingMatches": {
+            "type": "integer",
+            "description": "Number of pending matches"
+          },
+          "averageMatchTime": {
+            "type": "string",
+            "description": "Average time to accept a match (HH:MM:SS format)"
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "required": ["latitude", "longitude"],
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "format": "float"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "degraded", "unhealthy"]
+          },
+          "service": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "checks": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string"
+              },
+              "redis": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
